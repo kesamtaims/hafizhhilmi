@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Matrix Solver</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 1000px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .matrix-input {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .matrix-input input {
+            width: 60px;
+            text-align: center;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        .result h2 {
+            margin-top: 0;
+        }
+        .matrix-display {
+            display: inline-block;
+            margin: 10px;
+        }
+        .matrix-display table {
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+        .matrix-display td {
+            border: 1px solid #fff;
+            padding: 5px 10px;
+            text-align: center;
+        }
+        .method-buttons {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Aplikasi Matrix Solver</h1>
+        <div class="input-group">
+            <label for="rows">Jumlah Baris (n untuk matriks n x n, atau n x (n+1) untuk augmented):</label>
+            <input type="number" id="rows" min="1" value="3">
+            <label for="cols">Jumlah Kolom:</label>
+            <input type="number" id="cols" min="1" value="4">
+            <button onclick="generateMatrix()">Generate Matriks</button>
+        </div>
+        <div id="matrix-container"></div>
+        <div class="method-buttons">
+            <button onclick="solveGauss()">Eliminasi Gauss</button>
+            <button onclick="solveGaussJordan()">Gauss-Jordan</button>
+            <button onclick="solveInverse()">Metode Invers Matriks</button>
+        </div>
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        function generateMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            const container = document.getElementById('matrix-container');
+            container.innerHTML = '<h2>Input Elemen Matriks:</h2><div class="matrix-input" id="matrix-input"></div>';
+            const matrixInput = document.getElementById('matrix-input');
+            matrixInput.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.placeholder = `a[${i+1}][${j+1}]`;
+                    input.id = `cell-${i}-${j}`;
+                    matrixInput.appendChild(input);
+                }
+            }
+        }
+
+        function getMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            let matrix = [];
+            for (let i = 0; i < rows; i++) {
+                matrix[i] = [];
+                for (let j = 0; j < cols; j++) {
+                    matrix[i][j] = parseFloat(document.getElementById(`cell-${i}-${j}`).value) || 0;
+                }
+            }
+            return matrix;
+        }
+
+        function displayMatrix(matrix, title) {
+            let html = `<h3>${title}</h3><div class="matrix-display"><table>`;
+            for (let i = 0; i < matrix.length; i++) {
+                html += '<tr>';
+                for (let j = 0; j < matrix[i].length; j++) {
+                    html += `<td>${matrix[i][j].toFixed(2)}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table></div>';
+            return html;
+        }
+
+        function displaySolutions(matrix, cols, method) {
+            let solutions = [];
+            const n = matrix.length;
+            for (let i = 0; i < n; i++) {
+                if (i < cols - 1) {
+                    solutions.push(`x${i+1} = ${matrix[i][cols-1].toFixed(2)}`);
+                }
+            }
+            return `<h3>Solusi (${method}):</h3><p>${solutions.join(', ')}</p>`;
+        }
+
+        function solveGauss() {
+            let matrix = getMatrix().map(row => [...row]); // Copy matrix
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            for (let p = 0; p < rows - 1; p++) {
+                // Partial pivoting
+                let max = p;
+                for (let i = p + 1; i < rows; i++) {
+                    if (Math.abs(matrix[i][p]) > Math.abs(matrix[max][p])) {
+                        max = i;
+                    }
+                }
+                [matrix[p], matrix[max]] = [matrix[max], matrix[p]];
+
+                if (Math.abs(matrix[p][p]) < 1e-10) continue;
+
+                for (let i = p + 1; i < rows; i++) {
+                    const factor = matrix[i][p] / matrix[p][p];
+                    for (let j = p; j < cols; j++) {
+                        matrix[i][j] -= factor * matrix[p][j];
+                    }
+                }
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = displayMatrix(matrix, 'Hasil Eliminasi Gauss') + displaySolutions(matrix, cols, 'Gauss');
+        }
+
+        function solveGaussJordan() {
+            let matrix = getMatrix().map(row => [...row]);
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            for (let p = 0; p < rows; p++) {
+                let max = p;
+                for (let i = p + 1; i < rows; i++) {
+                    if (Math.abs(matrix[i][p]) > Math.abs(matrix[max][p])) {
+                        max = i;
+                    }
+                }
+                [matrix[p], matrix[max]] = [matrix[max], matrix[p]];
+
+                if (Math.abs(matrix[p][p]) < 1e-10) continue;
+
+                for (let i = 0; i < rows; i++) {
+                    if (i !== p) {
+                        const factor = matrix[i][p] / matrix[p][p];
+                        for (let j = p; j < cols; j++) {
+                            matrix[i][j] -= factor * matrix[p][j];
+                        }
+                    }
+                }
+
+                const pivot = matrix[p][p];
+                for (let j = 0; j < cols; j++) {
+                    matrix[p][j] /= pivot;
+                }
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = displayMatrix(matrix, 'Hasil Gauss-Jordan') + displaySolutions(matrix, cols, 'Gauss-Jordan');
+        }
+
+        function solveInverse() {
+            const originalMatrix = getMatrix();
+            const rows = originalMatrix.length;
+            const cols = originalMatrix[0].length;
+            if (rows !== cols - 1) {
+                alert('Untuk metode invers, matriks harus n x (n+1) dengan n = jumlah baris.');
+                return;
+            }
+
+            // Pisahkan A dan b
+            let A = originalMatrix.map(row => row.slice(0, rows));
+            let b = originalMatrix.map(row => row[rows]);
+
+            // Hitung invers A menggunakan Gauss-Jordan
+            let invA = A.map(row => [...row]);
+            let identity = Array.from({length: rows}, (_, i) => Array.from({length: rows}, (_, j) => i === j ? 1 : 0));
+
+            // Augmented [A | I]
+            for (let i = 0; i < rows; i++) {
+                invA[i] = invA[i].concat(identity[i]);
+            }
+
+            // Gauss-Jordan untuk invers
+            for (let p = 0; p < rows; p++) {
+                let max = p;
+                for (let i = p + 1; i < rows; i++) {
+                    if (Math.abs(invA[i][p]) > Math.abs(invA[max][p])) {
+                        max = i;
+                    }
+                }
+                [invA[p], invA[max]] = [invA[max], invA[p]];
+
+                if (Math.abs(invA[p][p]) < 1e-10) {
+                    alert('Matriks tidak invertible.');
+                    return;
+                }
+
+                for (let i = 0; i < rows; i++) {
+                    if (i !== p) {
+                        const factor = invA[i][p] / invA[p][p];
+                        for (let j = 0; j < 2 * rows; j++) {
+                            invA[i][j] -= factor * invA[p][j];
+                        }
+                    }
+                }
+
+                const pivot = invA[p][p];
+                for (let j = 0; j < 2 * rows; j++) {
+                    invA[p][j] /= pivot;
+                }
+            }
+
+            // Ekstrak invers dari bagian kanan
+            let inverse = invA.map(row => row.slice(rows));
+
+            // Hitung x = invA * b
+            let x = [];
+            for (let i = 0; i < rows; i++) {
+                x[i] = 0;
+                for (let j = 0; j < rows; j++) {
+                    x[i] += inverse[i][j] * b[j];
+                }
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = displayMatrix(inverse, 'Invers Matriks A') + `<h3>Solusi (Metode Invers):</h3><p>${x.map((val, idx) => `x${idx+1} = ${val.toFixed(2)}`).join(', ')}</p>`;
+        }
+    </script>
+</body>
+</html>
